@@ -41,13 +41,12 @@ public class UserServiceImpl implements UserService {
                     .body(new ErrorMessage("Formato de correo incorrecto"));
         }
 
-        // Validar formato de contraseña
+        // Validar formato de contraseña con Regex configurado
         if (!userDto.getPassword().matches(passwordRegex)) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST)
                     .body(new ErrorMessage("Formato de contraseña incorrecto"));
         }
 
-        // Convertir UserRequestDto a User
         User user = new User();
         user.setId(UUID.randomUUID());
         user.setName(userDto.getName());
@@ -104,6 +103,19 @@ public class UserServiceImpl implements UserService {
         Optional<User> existingUser = userRepository.findById(id);
 
         if (existingUser.isPresent()) {
+
+            // Validar formato de correo
+            if (!userDto.getEmail().matches("[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}")) {
+                return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                        .body(new ErrorMessage("Formato de correo incorrecto"));
+            }
+
+            // Validar formato de contraseña con Regex configurado
+            if (!userDto.getPassword().matches(passwordRegex)) {
+                return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                        .body(new ErrorMessage("Formato de contraseña incorrecto"));
+            }
+            
             User user = existingUser.get();
             user.setName(userDto.getName());
             user.setEmail(userDto.getEmail());
