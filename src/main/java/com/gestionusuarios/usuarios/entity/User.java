@@ -34,5 +34,4 @@ public class User {
     private String token;
     private boolean isActive;
 
-    // Getters y Setters
 }

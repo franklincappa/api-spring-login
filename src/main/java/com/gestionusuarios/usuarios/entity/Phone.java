@@ -17,5 +17,4 @@ public class Phone {
     private String citycode;
     private String contrycode;
 
-    // Getters y Setters
 }
