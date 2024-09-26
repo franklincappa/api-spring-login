@@ -1,5 +1,6 @@
 package com.gestionusuarios.usuarios.controller;
 
+import com.gestionusuarios.usuarios.dto.UserRequestDto;
 import com.gestionusuarios.usuarios.entity.User;
 import com.gestionusuarios.usuarios.service.UserService;
 import org.springframework.http.ResponseEntity;
@@ -20,8 +21,8 @@ public class UserController {
     }
 
     @PostMapping
-    public ResponseEntity<?> registerUser(@Valid @RequestBody User user) {
-        return userService.registerUser(user);
+    public ResponseEntity<?> registerUser(@Valid @RequestBody UserRequestDto userDto) {
+        return userService.registerUser(userDto);
     }
 
     @GetMapping
@@ -35,8 +36,8 @@ public class UserController {
     }
 
     @PutMapping("/{id}")
-    public ResponseEntity<?> updateUser(@PathVariable UUID id, @Valid @RequestBody User user) {
-        return userService.updateUser(id, user);
+    public ResponseEntity<?> updateUser(@PathVariable UUID id, @Valid @RequestBody UserRequestDto userDto) {
+        return userService.updateUser(id, userDto);
     }
 
     @DeleteMapping("/{id}")

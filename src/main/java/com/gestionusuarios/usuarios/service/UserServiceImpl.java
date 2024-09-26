@@ -1,30 +1,34 @@
 package com.gestionusuarios.usuarios.service;
 
+import com.gestionusuarios.usuarios.dto.UserRequestDto;
+import com.gestionusuarios.usuarios.dto.UserResponseDto;
+import com.gestionusuarios.usuarios.entity.Phone;
 import com.gestionusuarios.usuarios.entity.User;
 import com.gestionusuarios.usuarios.repository.UserRepository;
 import com.gestionusuarios.usuarios.exception.ErrorMessage;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 
-import java.util.Date;
-import java.util.Optional;
-import java.util.UUID;
-import java.util.List;
+import java.util.*;
 
 @Service
 public class UserServiceImpl implements UserService {
 
     private final UserRepository userRepository;
 
+    @Value("${user.password.regex}")
+    private String passwordRegex;
+
     public UserServiceImpl(UserRepository userRepository) {
         this.userRepository = userRepository;
     }
 
     @Override
-    public ResponseEntity<?> registerUser(User user) {
+    public ResponseEntity<?> registerUser(UserRequestDto userDto) {
         // Verificar si el correo ya está registrado
-        Optional<User> existingUser = userRepository.findByEmail(user.getEmail());
+        Optional<User> existingUser = userRepository.findByEmail(userDto.getEmail());
 
         if (existingUser.isPresent()) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST)
@@ -32,28 +36,51 @@ public class UserServiceImpl implements UserService {
         }
 
         // Validar formato de correo
-        if (!user.getEmail().matches("[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}")) {
+        if (!userDto.getEmail().matches("[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}")) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST)
                     .body(new ErrorMessage("Formato de correo incorrecto"));
         }
 
         // Validar formato de contraseña
-        if (!user.getPassword().matches("^(?=.*[0-9])(?=.*[a-zA-Z]).{6,}$")) {
+        if (!userDto.getPassword().matches(passwordRegex)) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST)
                     .body(new ErrorMessage("Formato de contraseña incorrecto"));
         }
 
-        // Seteo campos de usuario
+        // Convertir UserRequestDto a User
+        User user = new User();
         user.setId(UUID.randomUUID());
+        user.setName(userDto.getName());
+        user.setEmail(userDto.getEmail());
+        user.setPassword(userDto.getPassword());
         user.setCreated(new Date());
         user.setModified(new Date());
         user.setLastLogin(new Date());
         user.setToken(UUID.randomUUID().toString());
         user.setActive(true);
 
+        List<Phone> phones = new ArrayList<>();
+        for (var phoneDto : userDto.getPhones()) {
+            Phone phone = new Phone();
+            phone.setNumber(phoneDto.getNumber());
+            phone.setCitycode(phoneDto.getCitycode());
+            phone.setContrycode(phoneDto.getContrycode());
+            phones.add(phone);
+        }
+        user.setPhones(phones);
+
         User savedUser = userRepository.save(user);
 
-        return ResponseEntity.status(HttpStatus.CREATED).body(savedUser);
+        //Data Response de usuario
+        UserResponseDto responseDto = new UserResponseDto();
+        responseDto.setId(savedUser.getId());
+        responseDto.setCreated(savedUser.getCreated());
+        responseDto.setModified(savedUser.getModified());
+        responseDto.setLastLogin(savedUser.getLastLogin());
+        responseDto.setToken(savedUser.getToken());
+        responseDto.setActive(savedUser.isActive());
+
+        return ResponseEntity.status(HttpStatus.CREATED).body(responseDto);
     }
 
     @Override
@@ -73,16 +100,25 @@ public class UserServiceImpl implements UserService {
     }
 
     @Override
-    public ResponseEntity<?> updateUser(UUID id, User userDetails) {
+    public ResponseEntity<?> updateUser(UUID id, UserRequestDto userDto) {
         Optional<User> existingUser = userRepository.findById(id);
 
         if (existingUser.isPresent()) {
             User user = existingUser.get();
-            user.setName(userDetails.getName());
-            user.setEmail(userDetails.getEmail());
-            user.setPassword(userDetails.getPassword());
-            user.setPhones(userDetails.getPhones());
+            user.setName(userDto.getName());
+            user.setEmail(userDto.getEmail());
+            user.setPassword(userDto.getPassword());
             user.setModified(new java.util.Date());
+
+            List<Phone> phones = new ArrayList<>();
+            for (var phoneDto : userDto.getPhones()) {
+                Phone phone = new Phone();
+                phone.setNumber(phoneDto.getNumber());
+                phone.setCitycode(phoneDto.getCitycode());
+                phone.setContrycode(phoneDto.getContrycode());
+                phones.add(phone);
+            }
+            user.setPhones(phones);
 
             userRepository.save(user);
             return ResponseEntity.ok(user);
