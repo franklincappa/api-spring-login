@@ -6,10 +6,13 @@ import com.gestionusuarios.usuarios.entity.Phone;
 import com.gestionusuarios.usuarios.entity.User;
 import com.gestionusuarios.usuarios.repository.UserRepository;
 import com.gestionusuarios.usuarios.exception.ErrorMessage;
+import com.gestionusuarios.usuarios.security.JwtTokenProvider;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
+import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
+import org.springframework.security.crypto.password.PasswordEncoder;
 
 import java.util.*;
 
@@ -17,12 +20,15 @@ import java.util.*;
 public class UserServiceImpl implements UserService {
 
     private final UserRepository userRepository;
+    private final JwtTokenProvider jwtTokenProvider;
+    private final PasswordEncoder passwordEncoder = new BCryptPasswordEncoder();
 
     @Value("${user.password.regex}")
     private String passwordRegex;
 
-    public UserServiceImpl(UserRepository userRepository) {
+    public UserServiceImpl(UserRepository userRepository, JwtTokenProvider jwtTokenProvider) {
         this.userRepository = userRepository;
+        this.jwtTokenProvider = jwtTokenProvider;
     }
 
     @Override
@@ -51,12 +57,20 @@ public class UserServiceImpl implements UserService {
         user.setId(UUID.randomUUID());
         user.setName(userDto.getName());
         user.setEmail(userDto.getEmail());
-        user.setPassword(userDto.getPassword());
+        //user.setPassword(userDto.getPassword());
         user.setCreated(new Date());
         user.setModified(new Date());
         user.setLastLogin(new Date());
-        user.setToken(UUID.randomUUID().toString());
+        //user.setToken(UUID.randomUUID().toString());
         user.setActive(true);
+
+        //encriptamos la contraseña
+        String encodedPassword = passwordEncoder.encode(userDto.getPassword());
+        user.setPassword(encodedPassword);
+
+        //Generamos el token
+        String jwtToken = jwtTokenProvider.generateToken(user.getEmail());
+        user.setToken(jwtToken);
 
         List<Phone> phones = new ArrayList<>();
         for (var phoneDto : userDto.getPhones()) {
@@ -115,12 +129,16 @@ public class UserServiceImpl implements UserService {
                 return ResponseEntity.status(HttpStatus.BAD_REQUEST)
                         .body(new ErrorMessage("Formato de contraseña incorrecto"));
             }
-            
+
             User user = existingUser.get();
             user.setName(userDto.getName());
             user.setEmail(userDto.getEmail());
-            user.setPassword(userDto.getPassword());
+            //user.setPassword(userDto.getPassword());
             user.setModified(new java.util.Date());
+
+            //encriptamos la contraseña
+            String encodedPassword = passwordEncoder.encode(userDto.getPassword());
+            user.setPassword(encodedPassword);
 
             List<Phone> phones = new ArrayList<>();
             for (var phoneDto : userDto.getPhones()) {
@@ -157,7 +175,8 @@ public class UserServiceImpl implements UserService {
         Optional<User> user = userRepository.findByEmail(email);
 
         if (user.isPresent()) {
-            if (user.get().getPassword().equals(password)) {
+            //if (user.get().getPassword().equals(password)) {
+            if (passwordEncoder.matches(password, user.get().getPassword())) {
                 // Actualiza el último login
                 user.get().setLastLogin(new java.util.Date());
                 userRepository.save(user.get());
